@@ -24,6 +24,8 @@ else ifneq ($(findstring win,$(shell uname -a)),)
 endif
 endif
 
+platform=funkey
+
 # system platform
 system_platform = unix
 ifeq ($(shell uname -a),)
@@ -117,6 +119,43 @@ else ifeq ($(platform), vita)
    AR = arm-vita-eabi-ar
    CXXFLAGS += -Wl,-q -Wall -O3
 	STATIC_LINKING = 1
+
+else ifeq ($(platform), funkey)
+   TARGET := $(TARGET_NAME)_libretro.so
+   OD_TOOLCHAIN ?= /opt/FunKey-sdk-2.0.0/
+   CC := $(OD_TOOLCHAIN)bin/arm-funkey-linux-musleabihf-gcc
+   CXX := $(OD_TOOLCHAIN)bin/arm-funkey-linux-musleabihf-g++
+   LD := $(OD_TOOLCHAIN)bin/arm-funkey-linux-musleabihf-gcc
+   AR = $(OD_TOOLCHAIN)bin/arm-funkey-linux-musleabihf-ar
+   fpic := -fPIC
+  LDFLAGS += $(fpic) -shared -Wl,--version-script=link.T
+  CFLAGS += -Ofast \
+  -flto=4 -fwhole-program -fuse-linker-plugin \
+  -fdata-sections -ffunction-sections -Wl,--gc-sections \
+  -fno-stack-protector -fno-ident -fomit-frame-pointer \
+  -falign-functions=1 -falign-jumps=1 -falign-loops=1 \
+  -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-unroll-loops \
+  -fmerge-all-constants -fno-math-errno \
+  -marm -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fPIC
+  CXXFLAGS += $(CFLAGS)
+  CPPFLAGS += $(CFLAGS)
+  ASFLAGS += $(CFLAGS)
+  HAVE_NEON = 1
+  ARCH = arm
+  BUILTIN_GPU = neon
+  USE_DYNAREC = 1
+  CPU_ARCH := arm
+  ARM = 1
+  ifeq ($(shell echo `$(CC) -dumpversion` "< 4.9" | bc -l), 1)
+    CFLAGS += -march=armv7-a
+  else
+    CFLAGS += -march=armv7ve
+    # If gcc is 5.0 or later
+    ifeq ($(shell echo `$(CC) -dumpversion` ">= 5" | bc -l), 1)
+      LDFLAGS += -static-libgcc -static-libstdc++
+    endif
+  endif
+
 else
    CC = gcc
    TARGET := $(TARGET_NAME)_libretro.dll
